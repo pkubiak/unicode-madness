@@ -74,6 +74,10 @@ function init() {
     let material_1 = new THREE.MeshPhongMaterial({ specular: 0x00baff, color: 0x00baff, emissive: 0x00baff, shininess: 50, });
     let material_2 = new THREE.MeshPhongMaterial({ specular: 0xba00ff, color: 0xba00ff, emissive: 0xba00ff, shininess: 50, });
 
+    // let material_1d = new THREE.MeshPhongMaterial({ specular: 0x00baff, color: 0x00baff, emissive: 0x00baff, shininess: 50, });
+    // let material_2d = new THREE.MeshPhongMaterial({ specular: 0xba00ff, color: 0xba00ff, emissive: 0xba00ff, shininess: 50, opacity: 0.5, transparent: true });
+
+
     let material_final = new THREE.MeshPhongMaterial({ specular: 0xffba00, color: 0xffba00, emissive: 0xffba00, shininess: 50, });
 
     let geometry, height;
@@ -100,13 +104,17 @@ function init() {
             }
     }
     
-    for(let i=0;i<50;i++) {
-        mesh = new THREE.Mesh(geometry_1, Math.random() < 0.5 ? material_1 : material_2);
-        mesh.translateZ((2*Math.random()-1) * 1500);
-        mesh.translateX((2*Math.random()-1) * 1500);
-        let dist = (Math.random()) * 400 + 100;
+    for(let i=0;i<20;i++) {
+        let material_1d = new THREE.MeshPhongMaterial({ specular: 0x00baff, color: 0x00baff, emissive: 0x00baff, shininess: 50, });
+        let material_2d = new THREE.MeshPhongMaterial({ specular: 0xba00ff, color: 0xba00ff, emissive: 0xba00ff, shininess: 50, });
+
+        mesh = new THREE.Mesh(geometry_1, Math.random() < 0.5 ? material_1d : material_2d);
+        mesh.translateZ((2*Math.random()-1) * 500);
+        mesh.translateX((2*Math.random()-1) * 500);
+        let dist = (Math.random()) * 200 + 100;
         mesh.translateY(-dist);
-        // mesh.material.opacity = 0.1;
+        mesh.material.opacity = 0.8 - 0.5*(dist / 300);
+        mesh.material.transparent = true;
         scene.add(mesh);
     }
     //// KULKA
