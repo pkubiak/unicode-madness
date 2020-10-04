@@ -11,10 +11,11 @@ TODO przed meetingiem:
 [x] dodanie literek do zbierania / Unicode
 
 */
+
 const mapa = [
-"X  xxx",
+"X--xxx",
 "xx   x",
-" xxx x",
+" xxx-x",
 "  x  x",
 "xxxxxx",
 ];
@@ -53,6 +54,15 @@ function showModal(text) {
     document.querySelector('#modal').classList.remove('hidden')
 }
 
+function blendColors(c1, c2, t) {
+    let r1 = (c1>>16)&0xff, g1 = (c1>>8)&0xff, b1 = (c1>>0)&0xff;
+    let r2 = (c2>>16)&0xff, g2 = (c2>>8)&0xff, b2 = (c2>>0)&0xff;
+
+    let r = Math.round(r1*t + r2*(1-t)), g = Math.round(g1*t + g2*(1-t)), b = Math.round(b1*t + b2*(1-t));
+    return (r<<16)|(g<<8)|(b<<0);
+    // return c1;
+}
+
 function init() {
     camera = new THREE.PerspectiveCamera(70, 1, 1, 1000);
     camera.position.z = 0;
@@ -68,7 +78,7 @@ function init() {
     //var texture = new THREE.TextureLoader().load('textures/cosmo2.jpg');
     //scene.background = texture;
     var geometry_1 = new THREE.BoxBufferGeometry(80, 10, 80);
-    var geometry_2 = new THREE.BoxBufferGeometry(80, 60, 80);
+    var geometry_2 = new THREE.BoxBufferGeometry(80, 10, 20);
     // var material = new THREE.MeshBasicMaterial( { map: texture } );
 
     let material_1 = new THREE.MeshPhongMaterial({ specular: 0x00baff, color: 0x00baff, emissive: 0x00baff, shininess: 50, });
@@ -85,8 +95,10 @@ function init() {
         for (let x = 0; x < mapa[y].length; x++) {
             if (mapa[y][x] == ' ')
                 continue;
-            // if (mapa[y][x] == 'x')
-            geometry = geometry_1;
+            if (mapa[y][x] == '-')
+                geometry = geometry_2;
+            else
+                geometry = geometry_1;
             let material = (x + y) % 2 ? material_1 : material_2;
 
             if (mapa[y][x] == 'X')
@@ -103,20 +115,22 @@ function init() {
             scene.add(mesh);
             }
     }
-    
-    for(let i=0;i<20;i++) {
-        let material_1d = new THREE.MeshPhongMaterial({ specular: 0x00baff, color: 0x00baff, emissive: 0x00baff, shininess: 50, });
-        let material_2d = new THREE.MeshPhongMaterial({ specular: 0xba00ff, color: 0xba00ff, emissive: 0xba00ff, shininess: 50, });
 
-        mesh = new THREE.Mesh(geometry_1, Math.random() < 0.5 ? material_1d : material_2d);
+    // generate background tiles
+    for(let i=0;i<20;i++) {
+        let dist = (Math.random()) * 200 + 100;
+        let color = Math.random() < 0.5 ? 0x00baff : 0xba00ff;
+        color = blendColors(color, 0x000000, 0.5 - 0.5*(dist / 300));
+
+        let material = new THREE.MeshPhongMaterial({ specular: color, color: color, emissive: color, shininess: 50});
+
+        mesh = new THREE.Mesh(geometry_1, material);
         mesh.translateZ((2*Math.random()-1) * 500);
         mesh.translateX((2*Math.random()-1) * 500);
-        let dist = (Math.random()) * 200 + 100;
         mesh.translateY(-dist);
-        mesh.material.opacity = 0.8 - 0.5*(dist / 300);
-        mesh.material.transparent = true;
         scene.add(mesh);
     }
+
     //// KULKA
     let material_sphere = new THREE.MeshPhongMaterial({ specular: 0x111111, color: 0xce2140, emissive: 0x000000, shininess: 30, });
     sphere = new THREE.Mesh(
@@ -263,3 +277,5 @@ function createBoxWithUnicode(text) {
     });
     return new THREE.Mesh(geometry, material);
 }
+
+console.log(blendColors(0xffeedd, 0x000000, 0.1))
