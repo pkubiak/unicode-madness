@@ -11,14 +11,18 @@ TODO przed meetingiem:
 [x] dodanie literek do zbierania / Unicode
 
 */
-const LEVEL = {
+// import {BufferGeometryUtils} from "./BufferGeometryUtils.js";
+import * as THREE from 'https://unpkg.com/three@0.121.1/build/three.module.js';
+import { BufferGeometryUtils } from 'https://unpkg.com/three@0.121.1/examples/jsm/utils/BufferGeometryUtils.js';
+
+let LEVEL = {
     start: [0, 0],
     board: [
-        "x--xxx",
+        "x+-xxx",
         "xx   x",
         " xxx |",
         "  x  x",
-        "xxx-xx",
+        "xxx-x+",
     ],
     items: ['🌣', '😃', '🎔', '🎩', '🐈'],
     coords: [
@@ -27,6 +31,21 @@ const LEVEL = {
         [1, 1],
         [0, 4],
         [5, 4]
+    ]
+}
+
+LEVEL = {
+    start: [0, 0],
+    board: [
+        'x-z',
+        '  | cx',
+        ' c+-q',
+        ' eq'
+    ],
+    items: ['?', '+'],
+    coords: [
+        [1, 3],
+        [5, 1],
     ]
 }
 
@@ -48,7 +67,7 @@ function shuffle(a) {
 let NEXT_ITEM = 0;
 
 var renderer, camera, ballAcc={x:0, y:0}, ballSpeed={x:0, y:0}, last_timestamp=0, sphere;
-var isFalling = false, BOXES = [];
+var isFalling = false, BOXES = [], scene;
 var GAME_STATE = 'PLAYING';
 
 function showModal(text) {
@@ -62,20 +81,81 @@ function blendColors(c1, c2, t) {
 
     let r = Math.round(r1*t + r2*(1-t)), g = Math.round(g1*t + g2*(1-t)), b = Math.round(b1*t + b2*(1-t));
     return (r<<16)|(g<<8)|(b<<0);
-    // return c1;
 }
+
+function createCollisionMap(level, scene) {
+    let mapa = level.board;
+    for (let y = 0; y < mapa.length; y++) {
+        for (let x = 0; x < mapa[y].length; x++) {
+            let geometry = new THREE.PlaneGeometry( 80, 80);
+
+            var bitmap = document.createElement('canvas');
+            var g = bitmap.getContext('2d');
+            bitmap.width = 256;
+            bitmap.height = 256;
+            g.fillStyle = 'red';
+            g.fillRect(0, 0, 256, 256);
+            let imageData = g.getImageData(0,0,256,256);
+            let data = imageData.data;
+            let fn = TILES_COLLISION[mapa[y][x]] || ((x,y)=>false);
+
+            for(let xx=0;xx<256;xx++)
+                for(let yy=0;yy<256;yy++)
+                    data[4*(xx+256*yy)+3] = 128 * fn(xx/256, yy/256) + 128;
+            g.putImageData(imageData,0,0);
+            // canvas contents will be used for a texture
+            var texture = new THREE.Texture(bitmap);
+            texture.needsUpdate = true;
+
+            let material = new THREE.MeshBasicMaterial({
+                map: texture,
+                // opacity: 0.5,
+                transparent: true,
+            });
+            // material = new THREE.MeshPhongMaterial({ specular: 0xff0000, color: 0xff0000, emissive: 0xff0000, shininess: 50, });
+            let mesh = new THREE.Mesh(geometry, material);
+            mesh.translateZ(80 * y);
+            mesh.translateX(80 * x);
+            mesh.translateY(10);
+            mesh.rotation.x = -90 * Math.PI / 180;
+            
+            scene.add(mesh);
+        }
+    }
+}
+let corner = function(dx, dy){
+    let a = new THREE.BoxBufferGeometry(50, 10, 20);
+    a.translate(dx, 0, 0);
+    let b = new THREE.BoxBufferGeometry(20, 10, 50);
+    b.translate(0, 0, dy);
+    return BufferGeometryUtils.mergeBufferGeometries([a, b]);
+};
 
 const TILES = {
     'x': new THREE.BoxBufferGeometry(80, 10, 80),
     '-': new THREE.BoxBufferGeometry(80, 10, 20),
     '|': new THREE.BoxBufferGeometry(20, 10, 80),
+    '+': (function(){
+        let a = new THREE.BoxBufferGeometry(80, 10, 20);
+        let b = new THREE.BoxBufferGeometry(20, 10, 80);
+        return BufferGeometryUtils.mergeBufferGeometries([a, b]);
+    })(),
+    'z': corner(-15, 15),
+    'c': corner(15, 15),
+    'q': corner(-15, -15),
+    'e': corner(15, -15)
 };
 
 const TILES_COLLISION = {
     'x': (x, y) => true,
     '-': (x, y) => (3/4*0.5 <= y) && (y <= 5/4*0.5),
     '|': (x, y) => (3/4*0.5 <= x) && (x <= 5/4*0.5),
+    '+': (x, y) => ((3/4*0.5 <= x) && (x <= 5/4*0.5)) || ((3/4*0.5 <= y) && (y <= 5/4*0.5)),
     ' ': (x, y) => false,
+    'z': (x, y) => (x <= 5/4 * 0.5) && (3/4*0.5 <= y) && ((x >= 3/4*0.5) || (y<=5/4*0.5)),
+    'c': (x, y) => (x >= 3/4 * 0.5) && (3/4*0.5 <= y) && ((x <= 5/4*0.5) || (y<=5/4*0.5)),
+    'e': (x, y) => (x >= 3/4 * 0.5) && (5/4*0.5 >= y) && ((x <= 5/4*0.5) || (y>=3/4*0.5)),
+    'q': (x, y) => (x <= 5/4 * 0.5) && (5/4*0.5 >= y) && ((x >= 3/4*0.5) || (y>=3/4*0.5)),
 };
 
 function createMap(level, scene) {
@@ -95,13 +175,42 @@ function createMap(level, scene) {
             if (y == level.start[1] && x == level.start[0])
                 material = material_final;
 
-            mesh = new THREE.Mesh(geometry, material);
+            let mesh = new THREE.Mesh(geometry, material);
             mesh.translateZ(80 * y);
             mesh.translateX(80 * x);
             // mesh.translateY(0.5 * height);
             scene.add(mesh);
         }
     }
+}
+
+function initSensor() {
+    const options = { frequency: 60, referenceFrame: 'device' };
+    const sensor = new RelativeOrientationSensor(options);
+
+    Promise.all([navigator.permissions.query({ name: "accelerometer" }),
+             navigator.permissions.query({ name: "gyroscope" })])
+       .then(results => {
+         if (results.every(result => result.state === "granted")) {
+            sensor.addEventListener('reading', () => {
+                // model is a Three.js object instantiated elsewhere.
+                // document.querySelector('#hud').innerText = 'x='+(sensor.quaternion[0].toFixed(2))+' y='+(sensor.quaternion[1].toFixed(2))+' z='+(sensor.quaternion[2].toFixed(2));
+                rotateBoard(sensor.quaternion[1], sensor.quaternion[0]);
+                // alert(sensor.quaternion);
+                model.quaternion.fromArray(sensor.quaternion).inverse();
+            });
+            sensor.addEventListener('error', error => {
+                if (event.error.name == 'NotReadableError') {
+                    // alert("Sensor is not available.");
+                }
+            });
+            sensor.start();
+            // alert('Everything done');
+         } else {
+        //    alert("No permissions to use RelativeOrientationSensor.");
+         }
+    });
+    // alert('ok');
 }
 
 function init() {
@@ -118,14 +227,15 @@ function init() {
     scene.add(light);
 
     createMap(LEVEL, scene);
+    // createCollisionMap(LEVEL, scene);
 
     // generate background tiles
     for(let i=0;i<20;i++) {
         let dist = (Math.random()) * 200 + 100;
         let color = Math.random() < 0.5 ? 0x00baff : 0xba00ff;
-        color = blendColors(color, 0x000000, 0.5 - 0.5*(dist / 300));
+        color = blendColors(color, 0x000000, 0.3 - 0.2*(dist / 300) );
 
-        let material = new THREE.MeshPhongMaterial({ specular: color, color: color, emissive: color, shininess: 50});
+        let material = new THREE.MeshPhongMaterial({ specular: color, color: color, emissive: color, shininess: 20});
 
         let mesh = new THREE.Mesh(TILES['x'], material);
         mesh.translateZ((2*Math.random()-1) * 500);
@@ -145,11 +255,11 @@ function init() {
     //// end KULKA
 
     // unicody
-    shuffle(LEVEL.coords);
-    shuffle(LEVEL.items);
+    // shuffle(LEVEL.coords);
+    // shuffle(LEVEL.items);
 
     LEVEL.coords.forEach((coords, i) => {
-        boxMesh = createBoxWithUnicode(LEVEL.items[i]);
+        let boxMesh = createBoxWithUnicode(LEVEL.items[i]);
         boxMesh.translateY(20);
         boxMesh.translateX(80*coords[0]);
         boxMesh.translateZ(80*coords[1]);
@@ -168,6 +278,7 @@ function init() {
     window.addEventListener('mousemove', onMouseMove, false);
     requestAnimationFrame(animate);
     onWindowResize();
+    initSensor();
 }
 
 function onWindowResize() {
@@ -176,14 +287,7 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
-
-function onMouseMove(event) {
-    // console.log(renderer.domElement.clientX, renderer.domElement.clientY);
-    // console.log(event, event.clientX, event.clientY);
-    let el = renderer.domElement
-    let x = 2 * (event.clientX - el.offsetLeft) / el.width - 1;
-    let y = 2 * (event.clientY - el.offsetTop) / el.height - 1;
-
+function rotateBoard(x, y) {
     ballAcc = {x: x, y: y};
 
     // camera.rotation.x = 0;//30*x* Math.PI / 180;
@@ -191,6 +295,14 @@ function onMouseMove(event) {
     camera.rotation.y = -0.2*x;
     camera.rotation.x = -0.2*y - 1.57069632679523;//0.5*Math.pi;
     // console.log(x, y);
+}
+function onMouseMove(event) {
+    // console.log(renderer.domElement.clientX, renderer.domElement.clientY);
+    // console.log(event, event.clientX, event.clientY);
+    let el = renderer.domElement
+    let x = 2 * (event.clientX - el.offsetLeft) / el.width - 1;
+    let y = 2 * (event.clientY - el.offsetTop) / el.height - 1;
+    rotateBoard(x, y);
 }
 function animate(timestamp) {
     let dt = (timestamp - last_timestamp)/1000.0;
@@ -281,3 +393,7 @@ function createBoxWithUnicode(text) {
 }
 
 console.log(blendColors(0xffeedd, 0x000000, 0.1))
+
+window.onload = function(){
+    init();
+}
