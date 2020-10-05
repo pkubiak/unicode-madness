@@ -11,14 +11,24 @@ TODO przed meetingiem:
 [x] dodanie literek do zbierania / Unicode
 
 */
-
-const mapa = [
-"X--xxx",
-"xx   x",
-" xxx-x",
-"  x  x",
-"xxxxxx",
-];
+const LEVEL = {
+    start: [0, 0],
+    board: [
+        "x--xxx",
+        "xx   x",
+        " xxx |",
+        "  x  x",
+        "xxx-xx",
+    ],
+    items: ['🌣', '😃', '🎔', '🎩', '🐈'],
+    coords: [
+        [3, 2],
+        [3, 0],
+        [1, 1],
+        [0, 4],
+        [5, 4]
+    ]
+}
 
 /**
  * Shuffles array in place.
@@ -35,14 +45,6 @@ function shuffle(a) {
     return a;
 }
 
-let ITEMS = ['🌣', '😃', '🎔', '🎩', '🐈']
-const RIDDLE = [
-    [3, 2],
-    [3, 0],
-    [1, 1],
-    [0, 4],
-    [5, 4]
-];
 let NEXT_ITEM = 0;
 
 var renderer, camera, ballAcc={x:0, y:0}, ballSpeed={x:0, y:0}, last_timestamp=0, sphere;
@@ -63,6 +65,45 @@ function blendColors(c1, c2, t) {
     // return c1;
 }
 
+const TILES = {
+    'x': new THREE.BoxBufferGeometry(80, 10, 80),
+    '-': new THREE.BoxBufferGeometry(80, 10, 20),
+    '|': new THREE.BoxBufferGeometry(20, 10, 80),
+};
+
+const TILES_COLLISION = {
+    'x': (x, y) => true,
+    '-': (x, y) => (3/4*0.5 <= y) && (y <= 5/4*0.5),
+    '|': (x, y) => (3/4*0.5 <= x) && (x <= 5/4*0.5),
+    ' ': (x, y) => false,
+};
+
+function createMap(level, scene) {
+    let material_1 = new THREE.MeshPhongMaterial({ specular: 0x00baff, color: 0x00baff, emissive: 0x00baff, shininess: 50, });
+    let material_2 = new THREE.MeshPhongMaterial({ specular: 0xba00ff, color: 0xba00ff, emissive: 0xba00ff, shininess: 50, });
+    let material_final = new THREE.MeshPhongMaterial({ specular: 0xffba00, color: 0xffba00, emissive: 0xffba00, shininess: 50, });
+
+    let mapa = level.board;
+    for (let y = 0; y < mapa.length; y++) {
+        for (let x = 0; x < mapa[y].length; x++) {
+            let geometry;
+            if (mapa[y][x] == ' ')
+                continue;
+            geometry = TILES[mapa[y][x]];
+            let material = (x + y) % 2 ? material_1 : material_2;
+
+            if (y == level.start[1] && x == level.start[0])
+                material = material_final;
+
+            mesh = new THREE.Mesh(geometry, material);
+            mesh.translateZ(80 * y);
+            mesh.translateX(80 * x);
+            // mesh.translateY(0.5 * height);
+            scene.add(mesh);
+        }
+    }
+}
+
 function init() {
     camera = new THREE.PerspectiveCamera(70, 1, 1, 1000);
     camera.position.z = 0;
@@ -75,46 +116,8 @@ function init() {
     // you set the position of the light and it shines into the origin
     light.position.set(0, 200, 10).normalize();
     scene.add(light);
-    //var texture = new THREE.TextureLoader().load('textures/cosmo2.jpg');
-    //scene.background = texture;
-    var geometry_1 = new THREE.BoxBufferGeometry(80, 10, 80);
-    var geometry_2 = new THREE.BoxBufferGeometry(80, 10, 20);
-    // var material = new THREE.MeshBasicMaterial( { map: texture } );
 
-    let material_1 = new THREE.MeshPhongMaterial({ specular: 0x00baff, color: 0x00baff, emissive: 0x00baff, shininess: 50, });
-    let material_2 = new THREE.MeshPhongMaterial({ specular: 0xba00ff, color: 0xba00ff, emissive: 0xba00ff, shininess: 50, });
-
-    // let material_1d = new THREE.MeshPhongMaterial({ specular: 0x00baff, color: 0x00baff, emissive: 0x00baff, shininess: 50, });
-    // let material_2d = new THREE.MeshPhongMaterial({ specular: 0xba00ff, color: 0xba00ff, emissive: 0xba00ff, shininess: 50, opacity: 0.5, transparent: true });
-
-
-    let material_final = new THREE.MeshPhongMaterial({ specular: 0xffba00, color: 0xffba00, emissive: 0xffba00, shininess: 50, });
-
-    let geometry, height;
-    for (let y = 0; y < mapa.length; y++) {
-        for (let x = 0; x < mapa[y].length; x++) {
-            if (mapa[y][x] == ' ')
-                continue;
-            if (mapa[y][x] == '-')
-                geometry = geometry_2;
-            else
-                geometry = geometry_1;
-            let material = (x + y) % 2 ? material_1 : material_2;
-
-            if (mapa[y][x] == 'X')
-                material = material_final;
-            mesh = new THREE.Mesh(geometry, material);
-            mesh.translateZ(80 * y);
-            mesh.translateX(80 * x);
-            // geometry.computeBoundingBox().getSize
-            // if (mapa[y][x] == 'x')
-            height = 10;
-            // else
-            //     height = 60;
-            mesh.translateY(0.5 * height);
-            scene.add(mesh);
-            }
-    }
+    createMap(LEVEL, scene);
 
     // generate background tiles
     for(let i=0;i<20;i++) {
@@ -124,7 +127,7 @@ function init() {
 
         let material = new THREE.MeshPhongMaterial({ specular: color, color: color, emissive: color, shininess: 50});
 
-        mesh = new THREE.Mesh(geometry_1, material);
+        let mesh = new THREE.Mesh(TILES['x'], material);
         mesh.translateZ((2*Math.random()-1) * 500);
         mesh.translateX((2*Math.random()-1) * 500);
         mesh.translateY(-dist);
@@ -142,17 +145,17 @@ function init() {
     //// end KULKA
 
     // unicody
-    shuffle(ITEMS);
-    shuffle(RIDDLE);
+    shuffle(LEVEL.coords);
+    shuffle(LEVEL.items);
 
-    RIDDLE.forEach((box, i) => {
-        boxMesh = createBoxWithUnicode(ITEMS[i]);
+    LEVEL.coords.forEach((coords, i) => {
+        boxMesh = createBoxWithUnicode(LEVEL.items[i]);
         boxMesh.translateY(20);
-        boxMesh.translateX(80*box[0]);
-        boxMesh.translateZ(80*box[1]);
+        boxMesh.translateX(80*coords[0]);
+        boxMesh.translateZ(80*coords[1]);
         scene.add(boxMesh);
         BOXES.push(boxMesh);
-        document.querySelector('#hud').innerHTML += '<span id="item_'+i+'">' + ITEMS[i] +'</div>'
+        document.querySelector('#hud').innerHTML += '<span id="item_'+i+'">' + LEVEL.items[i] +'</div>'
     });
     // end of unicode
 
@@ -204,11 +207,10 @@ function animate(timestamp) {
         sphere.position.x += dt*ballSpeed.x;
         sphere.position.z += dt*ballSpeed.y;
     }
-    // console.log(sphere.position.x, sphere.position.z, sphere.position.y);
 
-    // console.log(sphere.position.x, sphere.position.z);
     let tileX = Math.floor((sphere.position.x+40)/80), tileY = Math.floor((sphere.position.z+40)/80);
-    if(tileX < 0 || tileY < 0 || tileY >= mapa.length || tileX >= mapa[tileY].length || mapa[tileY][tileX] == ' ')
+    let pX = (sphere.position.x+40)/80 - tileX, pY = (sphere.position.z+40)/80 - tileY;
+    if(tileX < 0 || tileY < 0 || tileY >= LEVEL.board.length || tileX >= LEVEL.board[tileY].length || !TILES_COLLISION[LEVEL.board[tileY][tileX]](pX, pY))
         isFalling = true;
 
 
