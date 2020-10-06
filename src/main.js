@@ -14,40 +14,8 @@ TODO przed meetingiem:
 // import {BufferGeometryUtils} from "./BufferGeometryUtils.js";
 import * as THREE from 'https://unpkg.com/three@0.121.1/build/three.module.js';
 import { BufferGeometryUtils } from 'https://unpkg.com/three@0.121.1/examples/jsm/utils/BufferGeometryUtils.js';
+import { LEVELS } from './levels.js';
 
-let LEVEL = {
-    start: [0, 0],
-    board: [
-        "x+-xxx",
-        "xx   x",
-        " xxx |",
-        "  x  x",
-        "xxx-x+",
-    ],
-    items: ['🌣', '😃', '🎔', '🎩', '🐈'],
-    coords: [
-        [3, 2],
-        [3, 0],
-        [1, 1],
-        [0, 4],
-        [5, 4]
-    ]
-}
-
-LEVEL = {
-    start: [0, 0],
-    board: [
-        'x-z',
-        '  | cx',
-        ' c+-q',
-        ' eq'
-    ],
-    items: ['?', '+'],
-    coords: [
-        [1, 3],
-        [5, 1],
-    ]
-}
 
 /**
  * Shuffles array in place.
@@ -68,7 +36,7 @@ let NEXT_ITEM = 0;
 
 var renderer, camera, ballAcc={x:0, y:0}, ballSpeed={x:0, y:0}, last_timestamp=0, sphere;
 var isFalling = false, BOXES = [], scene;
-var GAME_STATE = 'PLAYING';
+var GAME_STATE = 'PLAYING', LEVEL;
 
 function showModal(text) {
     document.querySelector('#modal .modal-inner').innerHTML = text;
@@ -112,13 +80,13 @@ function createCollisionMap(level, scene) {
                 // opacity: 0.5,
                 transparent: true,
             });
-            // material = new THREE.MeshPhongMaterial({ specular: 0xff0000, color: 0xff0000, emissive: 0xff0000, shininess: 50, });
+
             let mesh = new THREE.Mesh(geometry, material);
             mesh.translateZ(80 * y);
             mesh.translateX(80 * x);
             mesh.translateY(10);
             mesh.rotation.x = -90 * Math.PI / 180;
-            
+
             scene.add(mesh);
         }
     }
@@ -215,19 +183,22 @@ function initSensor() {
 
 function init() {
     camera = new THREE.PerspectiveCamera(70, 1, 1, 1000);
-    camera.position.z = 0;
-    camera.position.x = 0
     camera.position.y = 256;
     camera.lookAt(new THREE.Vector3( 0, 0, 0 ));
-    console.log('>>>>', camera.rotation);
+
     scene = new THREE.Scene();
     var light = new THREE.DirectionalLight(0xfdfdfd, 2);
     // you set the position of the light and it shines into the origin
     light.position.set(0, 200, 10).normalize();
     scene.add(light);
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const level_id = urlParams.get('level') || 'easy';
+    LEVEL = LEVELS[level_id];
+
     createMap(LEVEL, scene);
-    // createCollisionMap(LEVEL, scene);
+    if(urlParams.get('collision'))
+        createCollisionMap(LEVEL, scene);
 
     // generate background tiles
     for(let i=0;i<20;i++) {
@@ -255,9 +226,6 @@ function init() {
     //// end KULKA
 
     // unicody
-    // shuffle(LEVEL.coords);
-    // shuffle(LEVEL.items);
-
     LEVEL.coords.forEach((coords, i) => {
         let boxMesh = createBoxWithUnicode(LEVEL.items[i]);
         boxMesh.translateY(20);
@@ -387,7 +355,10 @@ function createBoxWithUnicode(text) {
 
     let geometry = new THREE.BoxGeometry(20,20,20);
     const material = new THREE.MeshBasicMaterial({
-        map: texture
+        map: texture,
+        // opacity: 0.99,
+        // transparent: true,
+        doubleSide: true
     });
     return new THREE.Mesh(geometry, material);
 }
