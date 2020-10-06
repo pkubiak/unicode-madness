@@ -217,11 +217,19 @@ function init() {
 
     //// KULKA
     let material_sphere = new THREE.MeshPhongMaterial({ specular: 0x111111, color: 0xce2140, emissive: 0x000000, shininess: 30, });
+    material_sphere = new THREE.MeshBasicMaterial({
+        map: getCheckerboardTexture(8),
+        // opacity: 0.5,
+        // transparent: true,
+    });
+
     sphere = new THREE.Mesh(
         new THREE.SphereGeometry( 20, 32, 32),
         material_sphere
     );
     sphere.position.y = 20;
+    sphere.position.x = 80*LEVEL.start[0];
+    sphere.position.z = 80*LEVEL.start[1];
     scene.add( sphere );
     //// end KULKA
 
@@ -286,6 +294,11 @@ function animate(timestamp) {
 
         sphere.position.x += dt*ballSpeed.x;
         sphere.position.z += dt*ballSpeed.y;
+
+        let dir = new THREE.Vector3(ballSpeed.y, 0, -ballSpeed.x);
+        let length = dir.length();
+        dir.normalize();
+        sphere.rotateOnWorldAxis(dir, 0.1*dt * length);
     }
 
     let tileX = Math.floor((sphere.position.x+40)/80), tileY = Math.floor((sphere.position.z+40)/80);
@@ -299,6 +312,8 @@ function animate(timestamp) {
         showModal('<h1>Looser!</h1><p>You have fallen off the board!</p>');
         GAME_STATE = 'DONE';
     }
+
+    
 
     // set camera position to ball position
     camera.position.z = sphere.position.z;
@@ -336,7 +351,7 @@ function animate(timestamp) {
 // https://stackoverflow.com/questions/12380072/threejs-render-text-in-canvas-as-texture-and-then-apply-to-a-plane
 function createBoxWithUnicode(text) {
     var bitmap = document.createElement('canvas');
-    var g = bitmap.getContext('2d');
+    let g = bitmap.getContext('2d');
     bitmap.width = 256;
     bitmap.height = 256;
     g.font = 'Bold 190px Arial';
@@ -350,7 +365,7 @@ function createBoxWithUnicode(text) {
     // g.strokeText(text, 0, 20);
 
     // canvas contents will be used for a texture
-    var texture = new THREE.Texture(bitmap);
+    let texture = new THREE.Texture(bitmap);
     texture.needsUpdate = true;
 
     let geometry = new THREE.BoxGeometry(20,20,20);
@@ -361,6 +376,25 @@ function createBoxWithUnicode(text) {
         doubleSide: true
     });
     return new THREE.Mesh(geometry, material);
+}
+
+function getCheckerboardTexture(n) {
+    var bitmap = document.createElement('canvas');
+    var g = bitmap.getContext('2d');
+    bitmap.width = 256;
+    bitmap.height = 256;
+    g.fillStyle = 'white';
+    g.fillRect(0, 0, 256, 256);
+    let dd = 256/n;
+    g.fillStyle = 'black';
+    for(let x=0;x<n;x++)
+        for(let y=0;y<n;y++)
+            if((x+y)%2)
+                g.fillRect(x*dd,y*dd,dd,dd);
+
+    let texture = new THREE.Texture(bitmap);
+    texture.needsUpdate = true;
+    return texture;
 }
 
 console.log(blendColors(0xffeedd, 0x000000, 0.1))

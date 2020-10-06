@@ -32,9 +32,24 @@ const LEVEL_2 = {
     ]
 }
 
+const PLAYGROUND = {
+    start: [3, 3],
+    board: [
+        'xxxxxxx',
+        'xxxxxxx',
+        'xxxxxxx',
+        'xxxxxxx',
+        'xxxxxxx',
+        'xxxxxxx',
+        'xxxxxxx',
+    ],
+    items: [],
+    coords: [],
+}
 const LEVELS = {
     'easy': LEVEL_1,
-    'hard': LEVEL_2
+    'hard': LEVEL_2,
+    'playground': PLAYGROUND
 }
 
 export { LEVELS };
