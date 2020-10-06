@@ -33,15 +33,17 @@ const LEVEL_2 = {
 }
 
 const PLAYGROUND = {
-    start: [3, 3],
+    start: [4, 4],
     board: [
-        'xxxxxxx',
-        'xxxxxxx',
-        'xxxxxxx',
-        'xxxxxxx',
-        'xxxxxxx',
-        'xxxxxxx',
-        'xxxxxxx',
+        'c-------z',
+        '|xxxxxxx|',
+        '|xxxxxxx|',
+        '|xxxxxxx|',
+        '|xxxxxxx|',
+        '|xxxxxxx|',
+        '|xxxxxxx|',
+        '|xxxxxxx|',
+        'e-------q',
     ],
     items: [],
     coords: [],

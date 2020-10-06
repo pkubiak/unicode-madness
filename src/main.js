@@ -37,6 +37,7 @@ let NEXT_ITEM = 0;
 var renderer, camera, ballAcc={x:0, y:0}, ballSpeed={x:0, y:0}, last_timestamp=0, sphere;
 var isFalling = false, BOXES = [], scene;
 var GAME_STATE = 'PLAYING', LEVEL;
+const SENSOR_FORCE = 3;
 
 function showModal(text) {
     document.querySelector('#modal .modal-inner').innerHTML = text;
@@ -163,7 +164,7 @@ function initSensor() {
             sensor.addEventListener('reading', () => {
                 // model is a Three.js object instantiated elsewhere.
                 // document.querySelector('#hud').innerText = 'x='+(sensor.quaternion[0].toFixed(2))+' y='+(sensor.quaternion[1].toFixed(2))+' z='+(sensor.quaternion[2].toFixed(2));
-                rotateBoard(sensor.quaternion[1], sensor.quaternion[0]);
+                rotateBoard(SENSOR_FORCE * sensor.quaternion[1], SENSOR_FORCE * sensor.quaternion[0]);
                 // alert(sensor.quaternion);
                 model.quaternion.fromArray(sensor.quaternion).inverse();
             });
@@ -176,9 +177,10 @@ function initSensor() {
             // alert('Everything done');
          } else {
         //    alert("No permissions to use RelativeOrientationSensor.");
+            window.addEventListener('mousemove', onMouseMove, false);
+
          }
     });
-    // alert('ok');
 }
 
 function init() {
@@ -251,7 +253,6 @@ function init() {
     renderer.setSize(512, 512);
     document.body.appendChild(renderer.domElement);
     window.addEventListener('resize', onWindowResize, false);
-    window.addEventListener('mousemove', onMouseMove, false);
     requestAnimationFrame(animate);
     onWindowResize();
     initSensor();
