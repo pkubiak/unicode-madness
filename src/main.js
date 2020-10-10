@@ -1,43 +1,14 @@
-/*
-TODO przed meetingiem:
-[x] renderowanie map
-[x] renderowanie kulki
-[x] ruszanie mapą przy użyciu myszki
-
----
-
-[x] mobilny widok
-[x] ruszanie z użyciem akcelerometru
-[x] dodanie literek do zbierania / Unicode
-
-*/
-// import {BufferGeometryUtils} from "./BufferGeometryUtils.js";
 import * as THREE from 'https://unpkg.com/three@0.121.1/build/three.module.js';
 import { BufferGeometryUtils } from 'https://unpkg.com/three@0.121.1/examples/jsm/utils/BufferGeometryUtils.js';
 import { LEVELS } from './levels.js';
 
-
-/**
- * Shuffles array in place.
- * @param {Array} a items An array containing the items.
- */
-function shuffle(a) {
-    var j, x, i;
-    for (i = a.length - 1; i > 0; i--) {
-        j = Math.floor(Math.random() * (i + 1));
-        x = a[i];
-        a[i] = a[j];
-        a[j] = x;
-    }
-    return a;
-}
 
 let NEXT_ITEM = 0;
 
 var renderer, camera, ballAcc={x:0, y:0}, ballSpeed={x:0, y:0}, last_timestamp=0, sphere;
 var isFalling = false, BOXES = [], scene;
 var GAME_STATE = 'PLAYING', LEVEL;
-const SENSOR_FORCE = 3;
+const SENSOR_FORCE = 1.5;
 
 function showModal(text) {
     document.querySelector('#modal .modal-inner').innerHTML = text;
@@ -153,35 +124,6 @@ function createMap(level, scene) {
     }
 }
 
-function initSensor() {
-    const options = { frequency: 60, referenceFrame: 'device' };
-    const sensor = new RelativeOrientationSensor(options);
-
-    Promise.all([navigator.permissions.query({ name: "accelerometer" }),
-             navigator.permissions.query({ name: "gyroscope" })])
-       .then(results => {
-         if (results.every(result => result.state === "granted")) {
-            sensor.addEventListener('reading', () => {
-                // model is a Three.js object instantiated elsewhere.
-                // document.querySelector('#hud').innerText = 'x='+(sensor.quaternion[0].toFixed(2))+' y='+(sensor.quaternion[1].toFixed(2))+' z='+(sensor.quaternion[2].toFixed(2));
-                rotateBoard(SENSOR_FORCE * sensor.quaternion[1], SENSOR_FORCE * sensor.quaternion[0]);
-                // alert(sensor.quaternion);
-                model.quaternion.fromArray(sensor.quaternion).inverse();
-            });
-            sensor.addEventListener('error', error => {
-                if (event.error.name == 'NotReadableError') {
-                    // alert("Sensor is not available.");
-                }
-            });
-            sensor.start();
-            // alert('Everything done');
-         } else {
-        //    alert("No permissions to use RelativeOrientationSensor.");
-            window.addEventListener('mousemove', onMouseMove, false);
-
-         }
-    });
-}
 
 function init() {
     camera = new THREE.PerspectiveCamera(70, 1, 1, 1000);
@@ -255,7 +197,18 @@ function init() {
     window.addEventListener('resize', onWindowResize, false);
     requestAnimationFrame(animate);
     onWindowResize();
-    initSensor();
+
+    initMotion();
+}
+
+function initMotion() {
+    if(window.DeviceOrientationEvent && 'ontouchstart' in window) {
+        // device support orientation events
+        window.addEventListener("deviceorientation", onDeviceOrientation, true);
+    } else {
+        // fallback to mouse control
+        window.addEventListener('mousemove', onMouseMove, false);
+    }
 }
 
 function onWindowResize() {
@@ -264,6 +217,7 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
 function rotateBoard(x, y) {
     ballAcc = {x: x, y: y};
 
@@ -314,8 +268,6 @@ function animate(timestamp) {
         GAME_STATE = 'DONE';
     }
 
-    
-
     // set camera position to ball position
     camera.position.z = sphere.position.z;
     camera.position.x = sphere.position.x;
@@ -362,8 +314,6 @@ function createBoxWithUnicode(text) {
     g.textAlign = "center";
     g.textBaseline = 'middle';
     g.fillText(text, 128, 128);
-    // g.strokeStyle = 'red';
-    // g.strokeText(text, 0, 20);
 
     // canvas contents will be used for a texture
     let texture = new THREE.Texture(bitmap);
@@ -403,3 +353,10 @@ console.log(blendColors(0xffeedd, 0x000000, 0.1))
 window.onload = function(){
     init();
 }
+
+
+function onDeviceOrientation(event){
+    // document.querySelector('#hud').innerHTML = event.absolute + '<br/>'+Math.round(event.alpha, 2)+'<br/>'+Math.round(event.beta,2)+'<br/>'+Math.round(event.gamma,2);
+    rotateBoard(SENSOR_FORCE * event.gamma / 90, SENSOR_FORCE * event.beta / 90);
+}
+
