@@ -324,7 +324,6 @@ function createBoxWithUnicode(text) {
         map: texture,
         // opacity: 0.99,
         // transparent: true,
-        doubleSide: true
     });
     return new THREE.Mesh(geometry, material);
 }
