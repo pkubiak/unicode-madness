@@ -178,15 +178,22 @@ function init() {
     //// end KULKA
 
     // unicody
+    // document.querySelector('#hud').innerHTML = 'Target: ';
     LEVEL.coords.forEach((coords, i) => {
-        let boxMesh = createBoxWithUnicode(LEVEL.items[i]);
+        let item = LEVEL.items[i];
+        let boxMesh = createBoxWithUnicode(item);
         boxMesh.translateY(20);
         boxMesh.translateX(80*coords[0]);
         boxMesh.translateZ(80*coords[1]);
         scene.add(boxMesh);
         BOXES.push(boxMesh);
-        document.querySelector('#hud').innerHTML += '<span id="item_'+i+'">' + LEVEL.items[i] +'</div>'
+        let output = item;
+        if(item.length > 1)
+            output = '<img src="https://github.githubassets.com/images/icons/emoji/unicode/'+item+'.png"/>'
+
+        document.querySelector('#hud').innerHTML += '<span id="item_'+i+'">' + output +'</div>';
     });
+
     // end of unicode
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -282,7 +289,7 @@ function animate(timestamp) {
                     scene.remove(box);
                     BOXES[i] = null;
                     NEXT_ITEM += 1;
-                    document.querySelector('#item_'+i).style.color = 'yellow';
+                    document.querySelector('#item_'+i).classList.add('disabled');
                     if(NEXT_ITEM == BOXES.length) {
                         showModal('<h1>Congratulations!</h1><p>That was brilliant 😍</p>');
                         GAME_STATE = 'DONE';
@@ -303,27 +310,40 @@ function animate(timestamp) {
 
 // https://stackoverflow.com/questions/12380072/threejs-render-text-in-canvas-as-texture-and-then-apply-to-a-plane
 function createBoxWithUnicode(text) {
-    var bitmap = document.createElement('canvas');
+    let texture = new THREE.Texture();
+    let bitmap = document.createElement('canvas');
     let g = bitmap.getContext('2d');
     bitmap.width = 256;
     bitmap.height = 256;
-    g.font = 'Bold 190px Arial';
-    g.fillStyle = 'white';
-    g.fillRect(0, 0, 256, 256);
-    g.fillStyle = 'black';
-    g.textAlign = "center";
-    g.textBaseline = 'middle';
-    g.fillText(text, 128, 128);
 
-    // canvas contents will be used for a texture
-    let texture = new THREE.Texture(bitmap);
-    texture.needsUpdate = true;
+    if(text.length == 1) {
+        g.font = 'Bold 190px Arial';
+        g.fillStyle = 'white';
+        g.fillRect(0, 0, 256, 256);
+        g.fillStyle = 'black';
+        g.textAlign = "center";
+        g.textBaseline = 'middle';
+        g.fillText(text, 128, 128);
+        texture.image = bitmap;
+        texture.needsUpdate = true;
+    } else {
+        let manager = new THREE.LoadingManager();
+        var loader = new THREE.ImageLoader( manager );
+        texture = new THREE.Texture();
+        loader.load('https://github.githubassets.com/images/icons/emoji/unicode/'+text+'.png', function ( image ) {
+            let offset = 16;
+            g.fillStyle = 'white';
+            g.fillRect(0, 0, 256, 256);
+            g.drawImage(image, offset, offset, 256-2*offset, 256-2*offset)
+            texture.image = bitmap;
+            texture.needsUpdate = true;
+        });
+    }
 
     let geometry = new THREE.BoxGeometry(20,20,20);
     const material = new THREE.MeshBasicMaterial({
         map: texture,
-        // opacity: 0.99,
-        // transparent: true,
+        transparent: false,
     });
     return new THREE.Mesh(geometry, material);
 }
@@ -350,6 +370,7 @@ function getCheckerboardTexture(n) {
 console.log(blendColors(0xffeedd, 0x000000, 0.1))
 
 window.onload = function(){
+    console.log('Window onload')
     init();
 }
 
