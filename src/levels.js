@@ -48,10 +48,21 @@ const PLAYGROUND = {
     items: ['1f680', '1f987', '1f41b', '26c4'],
     coords: [[2,2], [6,2], [2, 6], [6,6]],
 }
+
+const HIGHWAY = {
+    start: [0, 0],
+    board: [
+        'x>>>>>>>>>xxxxxxxxxxx',
+    ],
+    items: ['1f31f'],
+    coords: [[20,0]],
+}
+
 const LEVELS = {
     'easy': LEVEL_1,
     'hard': LEVEL_2,
-    'playground': PLAYGROUND
+    'playground': PLAYGROUND,
+    'highway': HIGHWAY
 }
 
 export { LEVELS };

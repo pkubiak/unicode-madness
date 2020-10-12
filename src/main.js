@@ -85,9 +85,14 @@ const TILES = {
     'q': corner(-15, -15),
     'e': corner(15, -15)
 };
+TILES['>'] = TILES['<'] = TILES['^'] = TILES['v'] = TILES['x'];
+
+
+const TRUE = (x,y) => true;
 
 const TILES_COLLISION = {
-    'x': (x, y) => true,
+    'x': TRUE,
+    '>': TRUE, '<': TRUE, '^': TRUE, 'v': TRUE,
     '-': (x, y) => (3/4*0.5 <= y) && (y <= 5/4*0.5),
     '|': (x, y) => (3/4*0.5 <= x) && (x <= 5/4*0.5),
     '+': (x, y) => ((3/4*0.5 <= x) && (x <= 5/4*0.5)) || ((3/4*0.5 <= y) && (y <= 5/4*0.5)),
@@ -103,6 +108,23 @@ function createMap(level, scene) {
     let material_2 = new THREE.MeshPhongMaterial({ specular: 0xba00ff, color: 0xba00ff, emissive: 0xba00ff, shininess: 50, });
     let material_final = new THREE.MeshPhongMaterial({ specular: 0xffba00, color: 0xffba00, emissive: 0xffba00, shininess: 50, });
 
+    let boost_materials = {};
+    const dirs = '>^<v';
+    for(let i=0;i<4;i++) {
+        let tex = createUnicodeTexture('»');
+        tex.center.x = 0.5;
+        tex.center.y = 0.5;
+        tex.rotation = 90 * i * (2 * Math.PI) / 360;//i * 0.5 * Math.PI;
+        tex.updateMatrix();
+        boost_materials[dirs[i]] = new THREE.MeshPhongMaterial({
+            specular: 0x111111,
+            color: 0x45FF00,
+            emissive: 0x0,
+            shininess: 10,
+            map: tex
+        })
+    }
+
     let mapa = level.board;
     for (let y = 0; y < mapa.length; y++) {
         for (let x = 0; x < mapa[y].length; x++) {
@@ -114,11 +136,12 @@ function createMap(level, scene) {
 
             if (y == level.start[1] && x == level.start[0])
                 material = material_final;
+            if('<>^v'.indexOf(mapa[y][x]) != -1) 
+                material = boost_materials[mapa[y][x]];
 
             let mesh = new THREE.Mesh(geometry, material);
             mesh.translateZ(80 * y);
             mesh.translateX(80 * x);
-            // mesh.translateY(0.5 * height);
             scene.add(mesh);
         }
     }
@@ -228,12 +251,10 @@ function onWindowResize() {
 function rotateBoard(x, y) {
     ballAcc = {x: x, y: y};
 
-    // camera.rotation.x = 0;//30*x* Math.PI / 180;
-    // camera.lookAt(new THREE.Vector3( 30*y, 0, 30*x));
     camera.rotation.y = -0.2*x;
     camera.rotation.x = -0.2*y - 1.57069632679523;//0.5*Math.pi;
-    // console.log(x, y);
 }
+
 function onMouseMove(event) {
     // console.log(renderer.domElement.clientX, renderer.domElement.clientY);
     // console.log(event, event.clientX, event.clientY);
@@ -242,17 +263,30 @@ function onMouseMove(event) {
     let y = 2 * (event.clientY - el.offsetTop) / el.height - 1;
     rotateBoard(x, y);
 }
+
 function animate(timestamp) {
     let dt = (timestamp - last_timestamp)/1000.0;
     last_timestamp = timestamp;
 
-    // console.log(dt, timestamp, last_timestamp);
+    let accX = ballAcc.x, accY = ballAcc.y;
+    let tileX = Math.floor((sphere.position.x+40)/80), tileY = Math.floor((sphere.position.z+40)/80);
+    let pX = (sphere.position.x+40)/80 - tileX, pY = (sphere.position.z+40)/80 - tileY;
+    if(tileX < 0 || tileY < 0 || tileY >= LEVEL.board.length || tileX >= LEVEL.board[tileY].length || !TILES_COLLISION[LEVEL.board[tileY][tileX]](pX, pY))
+        isFalling = true;
+
+    if(tileX >= 0 && tileY >= 0 && tileY < LEVEL.board.length && tileX < LEVEL.board[tileY].length) {
+        let tile = LEVEL.board[tileY][tileX];
+        if(tile == '>')accX += 3.0;
+        if(tile == '<')accX -= 3.0;
+        if(tile == '^')accY -= 3.0;
+        if(tile == 'v')accY += 3.0;
+    }
 
     if(isFalling)
         sphere.position.y -= 400*dt;
     else {
-        ballSpeed.x += 50*dt*ballAcc.x;
-        ballSpeed.y += 50*dt*ballAcc.y;
+        ballSpeed.x += 50*dt*accX;
+        ballSpeed.y += 50*dt*accY;
 
         sphere.position.x += dt*ballSpeed.x;
         sphere.position.z += dt*ballSpeed.y;
@@ -262,12 +296,6 @@ function animate(timestamp) {
         dir.normalize();
         sphere.rotateOnWorldAxis(dir, 0.1*dt * length);
     }
-
-    let tileX = Math.floor((sphere.position.x+40)/80), tileY = Math.floor((sphere.position.z+40)/80);
-    let pX = (sphere.position.x+40)/80 - tileX, pY = (sphere.position.z+40)/80 - tileY;
-    if(tileX < 0 || tileY < 0 || tileY >= LEVEL.board.length || tileX >= LEVEL.board[tileY].length || !TILES_COLLISION[LEVEL.board[tileY][tileX]](pX, pY))
-        isFalling = true;
-
 
     if(sphere.position.y < -1000) {
         scene.remove(sphere);
@@ -308,18 +336,18 @@ function animate(timestamp) {
         requestAnimationFrame(animate);
 }
 
-// https://stackoverflow.com/questions/12380072/threejs-render-text-in-canvas-as-texture-and-then-apply-to-a-plane
-function createBoxWithUnicode(text) {
+function createUnicodeTexture(text, background) {
     let texture = new THREE.Texture();
     let bitmap = document.createElement('canvas');
     let g = bitmap.getContext('2d');
     bitmap.width = 256;
     bitmap.height = 256;
 
+    g.fillStyle = background || 'white';
+    g.fillRect(0, 0, 256, 256);
+
     if(text.length == 1) {
         g.font = 'Bold 190px Arial';
-        g.fillStyle = 'white';
-        g.fillRect(0, 0, 256, 256);
         g.fillStyle = 'black';
         g.textAlign = "center";
         g.textBaseline = 'middle';
@@ -332,17 +360,19 @@ function createBoxWithUnicode(text) {
         texture = new THREE.Texture();
         loader.load('https://github.githubassets.com/images/icons/emoji/unicode/'+text+'.png', function ( image ) {
             let offset = 16;
-            g.fillStyle = 'white';
-            g.fillRect(0, 0, 256, 256);
             g.drawImage(image, offset, offset, 256-2*offset, 256-2*offset)
             texture.image = bitmap;
             texture.needsUpdate = true;
         });
     }
+    return texture;
+}
 
+// https://stackoverflow.com/questions/12380072/threejs-render-text-in-canvas-as-texture-and-then-apply-to-a-plane
+function createBoxWithUnicode(text) {
     let geometry = new THREE.BoxGeometry(20,20,20);
     const material = new THREE.MeshBasicMaterial({
-        map: texture,
+        map: createUnicodeTexture(text),
         transparent: false,
     });
     return new THREE.Mesh(geometry, material);
