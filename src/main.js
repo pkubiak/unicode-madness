@@ -1,5 +1,6 @@
 import * as THREE from 'https://unpkg.com/three@0.121.1/build/three.module.js';
 import { BufferGeometryUtils } from 'https://unpkg.com/three@0.121.1/examples/jsm/utils/BufferGeometryUtils.js';
+import { OrbitControls } from 'https://unpkg.com/three@0.121.1/examples/jsm/controls/OrbitControls.js';
 import { LEVELS } from './levels.js';
 
 
@@ -9,6 +10,8 @@ var renderer, camera, ballAcc={x:0, y:0}, ballSpeed={x:0, y:0}, last_timestamp=0
 var isFalling = false, BOXES = [], scene;
 var GAME_STATE = 'PLAYING', LEVEL;
 const SENSOR_FORCE = 1.5;
+let CREATIVE_MODE = false;
+let BARRIERS = new Set();
 
 function showModal(text) {
     document.querySelector('#modal .modal-inner').innerHTML = text;
@@ -110,6 +113,7 @@ function createMap(level, scene) {
 
     let boost_materials = {};
     const dirs = '>^<v';
+
     for(let i=0;i<4;i++) {
         let tex = createUnicodeTexture('»');
         tex.center.x = 0.5;
@@ -136,7 +140,7 @@ function createMap(level, scene) {
 
             if (y == level.start[1] && x == level.start[0])
                 material = material_final;
-            if('<>^v'.indexOf(mapa[y][x]) != -1) 
+            if('<>^v'.indexOf(mapa[y][x]) != -1)
                 material = boost_materials[mapa[y][x]];
 
             let mesh = new THREE.Mesh(geometry, material);
@@ -145,6 +149,44 @@ function createMap(level, scene) {
             scene.add(mesh);
         }
     }
+
+    for(let barrier of level.barriers) {
+        let [dir, x, y] = barrier;
+
+        if(dir == 'v') {
+            let b = makeBarrier(material_1, material_2);
+            b.translateX(-40 + x*80);
+            b.translateZ(80 * y);
+            scene.add(b);
+            BARRIERS.add(`v_${x}_${y}`);
+        }
+        if(dir == 'h') {
+            let b = makeBarrier(material_1, material_2);
+            b.rotateY(0.5*Math.PI);
+            b.translateX(40-80*y);
+            b.translateZ(80*x);
+            scene.add(b);
+            BARRIERS.add(`h_${x}_${y}`);
+        }
+    }
+}
+
+function makeBarrier(material_1, material_2){
+    let x = new THREE.Mesh(new THREE.BoxBufferGeometry(5, 10, 80), material_2);
+    x.translateY(20);
+    let y = new THREE.Mesh(new THREE.BoxBufferGeometry(3, 35, 3), material_1);
+    y.translateZ(30);
+    y.translateY(25-7.5-5);
+    let z = new THREE.Mesh(new THREE.BoxBufferGeometry(3, 35, 3), material_1);
+    z.translateZ(-30);
+    z.translateY(25-7.5-5);
+
+    let barier = new THREE.Group();
+    barier.add(x);
+    barier.add(y);
+    barier.add(z);
+
+    return barier;
 }
 
 
@@ -228,7 +270,12 @@ function init() {
     requestAnimationFrame(animate);
     onWindowResize();
 
-    initMotion();
+    CREATIVE_MODE = urlParams.has('creative');
+    if(CREATIVE_MODE) {
+        let controls = new OrbitControls( camera, renderer.domElement );
+    } else {
+        initMotion();
+    }
 }
 
 function initMotion() {
@@ -271,6 +318,9 @@ function animate(timestamp) {
     let accX = ballAcc.x, accY = ballAcc.y;
     let tileX = Math.floor((sphere.position.x+40)/80), tileY = Math.floor((sphere.position.z+40)/80);
     let pX = (sphere.position.x+40)/80 - tileX, pY = (sphere.position.z+40)/80 - tileY;
+    // console.log(tileX, tileY, pX, pY);
+
+
     if(tileX < 0 || tileY < 0 || tileY >= LEVEL.board.length || tileX >= LEVEL.board[tileY].length || !TILES_COLLISION[LEVEL.board[tileY][tileX]](pX, pY))
         isFalling = true;
 
@@ -297,15 +347,49 @@ function animate(timestamp) {
         sphere.rotateOnWorldAxis(dir, 0.1*dt * length);
     }
 
+    // check collisions with barriers
+    if(BARRIERS.has(`v_${tileX}_${tileY}`)) {
+        if(pX < 0.26) {
+            sphere.position.x = 80*tileX - 40 + 80*0.26;
+            ballSpeed.x *= -0.4;
+        }
+    }
+    if(BARRIERS.has(`v_${tileX+1}_${tileY}`)) {
+        if(pX > 1 - 0.26) {
+            sphere.position.x = 80*tileX - 40 + 80*(1-0.26);
+            ballSpeed.x *= -0.4;
+        }
+    }
+    if(BARRIERS.has(`h_${tileX}_${tileY}`)) {
+        if(pY < 0.26) {
+            sphere.position.z = 80*tileY - 40 + 80*0.26;
+            ballSpeed.y *= -0.4;
+        }
+    }
+
+    if(BARRIERS.has(`h_${tileX}_${tileY+1}`)) {
+        if(pY > 1 - 0.26) {
+            sphere.position.z = 80*tileY - 40 + 80*(1-0.26);
+            ballSpeed.y *= -0.4;
+        }
+    }
+
     if(sphere.position.y < -1000) {
         scene.remove(sphere);
         showModal('<h1>Looser!</h1><p>You have fallen off the board!</p>');
         GAME_STATE = 'DONE';
     }
 
+    if(sphere.position.x > 300){
+        sphere.position.x = 300;
+        ballSpeed.x *= -0.3;
+    }
+
     // set camera position to ball position
-    camera.position.z = sphere.position.z;
-    camera.position.x = sphere.position.x;
+    if(!CREATIVE_MODE) {
+        camera.position.z = sphere.position.z;
+        camera.position.x = sphere.position.x;
+    }
 
     // rotate boxes
     BOXES.forEach((box, i) => {
@@ -397,12 +481,8 @@ function getCheckerboardTexture(n) {
     return texture;
 }
 
-console.log(blendColors(0xffeedd, 0x000000, 0.1))
 
-window.onload = function(){
-    console.log('Window onload')
-    init();
-}
+window.onload = init;
 
 
 function onDeviceOrientation(event){

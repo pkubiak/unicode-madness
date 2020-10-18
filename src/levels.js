@@ -58,11 +58,61 @@ const HIGHWAY = {
     coords: [[20,0]],
 }
 
+const MAZE = {
+    start: [1, 0],
+    board: [
+        ' x  ',
+        'xxxx',
+        'xxxx',
+        'xxxx',
+        'xxxx',
+        '  x ',
+    ],
+    items: ['1f31f'],
+    coords: [[2, 5]],
+    barriers: [
+        ['h', 0, 1],
+        ['h', 2, 1],
+        ['h', 3, 1],
+        ['h', 1, 2],
+        ['h', 2, 2],
+        ['h', 3, 3],
+        ['h', 0, 4],
+        ['h', 2, 4],
+        ['h', 0, 5],
+        ['h', 1, 5],
+        ['h', 3, 5],
+
+        ['v', 0, 1],
+        ['v', 0, 2],
+        ['v', 0, 3],
+        ['v', 0, 4],
+        ['v', 1, 2],
+        ['v', 2, 3],
+        ['v', 2, 4],
+        ['v', 3, 2],
+        ['v', 4, 1],
+        ['v', 4, 2],
+        ['v', 4, 3],
+        ['v', 4, 4],
+        // ['v', 0, 0],
+        // ['v', 0, 1],
+        // ['v', 1, 0],
+        // ['v', 2, 0],
+        // ['v', 2, 1],
+        // ['h', 0, 0],
+        // ['h', 0, 2],
+        // ['h', 1, 0],
+        // ['h', 1, 2],
+    ]
+}
+
 const LEVELS = {
     'easy': LEVEL_1,
     'hard': LEVEL_2,
     'playground': PLAYGROUND,
-    'highway': HIGHWAY
+    'highway': HIGHWAY,
+    'maze': MAZE,
 }
 
 export { LEVELS };
