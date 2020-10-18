@@ -16,6 +16,8 @@ Simple clone of Marble Maddness / Neverball created during [gamejam](https://git
 | playground | https://pkubiak.github.io/unicode-madness/index.html?level=playground |
 | highway (boosting plate demo) | https://pkubiak.github.io/unicode-madness/index.html?level=highway |
 | maze (barriers demo) | https://pkubiak.github.io/unicode-madness/index.html?level=maze |
+| factory | https://pkubiak.github.io/unicode-madness/index.html?level=factory |
+| corners (corners collisions test) | https://pkubiak.github.io/unicode-madness/index.html?level=corners |
 
 ## Screenshots ##
 ![gameplay screenshot](gameplay.png)

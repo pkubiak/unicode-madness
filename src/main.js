@@ -6,7 +6,7 @@ import { LEVELS } from './levels.js';
 
 let NEXT_ITEM = 0;
 
-var renderer, camera, ballAcc={x:0, y:0}, ballSpeed={x:0, y:0}, last_timestamp=0, sphere;
+var renderer, camera, ballAcc={x:0, y:0}, ballSpeed={x:0, y:0}, last_timestamp=null, sphere;
 var isFalling = false, BOXES = [], scene;
 var GAME_STATE = 'PLAYING', LEVEL;
 const SENSOR_FORCE = 1.5;
@@ -109,6 +109,7 @@ const TILES_COLLISION = {
 function createMap(level, scene) {
     let material_1 = new THREE.MeshPhongMaterial({ specular: 0x00baff, color: 0x00baff, emissive: 0x00baff, shininess: 50, });
     let material_2 = new THREE.MeshPhongMaterial({ specular: 0xba00ff, color: 0xba00ff, emissive: 0xba00ff, shininess: 50, });
+    let material_3 = new THREE.MeshPhongMaterial({ specular: 0, color: 0xff4400, emissive: 0xff4400, shininess: 50, });
     let material_final = new THREE.MeshPhongMaterial({ specular: 0xffba00, color: 0xffba00, emissive: 0xffba00, shininess: 50, });
 
     let boost_materials = {};
@@ -154,14 +155,14 @@ function createMap(level, scene) {
         let [dir, x, y] = barrier;
 
         if(dir == 'v') {
-            let b = makeBarrier(material_1, material_2);
+            let b = makeBarrier(material_1, material_3);
             b.translateX(-40 + x*80);
             b.translateZ(80 * y);
             scene.add(b);
             BARRIERS.add(`v_${x}_${y}`);
         }
         if(dir == 'h') {
-            let b = makeBarrier(material_1, material_2);
+            let b = makeBarrier(material_1, material_3);
             b.rotateY(0.5*Math.PI);
             b.translateX(40-80*y);
             b.translateZ(80*x);
@@ -312,17 +313,16 @@ function onMouseMove(event) {
 }
 
 function animate(timestamp) {
+    
     let dt = (timestamp - last_timestamp)/1000.0;
+    if(last_timestamp === null) {
+        dt = 1/60;
+    }
     last_timestamp = timestamp;
 
     let accX = ballAcc.x, accY = ballAcc.y;
     let tileX = Math.floor((sphere.position.x+40)/80), tileY = Math.floor((sphere.position.z+40)/80);
-    let pX = (sphere.position.x+40)/80 - tileX, pY = (sphere.position.z+40)/80 - tileY;
-    // console.log(tileX, tileY, pX, pY);
 
-
-    if(tileX < 0 || tileY < 0 || tileY >= LEVEL.board.length || tileX >= LEVEL.board[tileY].length || !TILES_COLLISION[LEVEL.board[tileY][tileX]](pX, pY))
-        isFalling = true;
 
     if(tileX >= 0 && tileY >= 0 && tileY < LEVEL.board.length && tileX < LEVEL.board[tileY].length) {
         let tile = LEVEL.board[tileY][tileX];
@@ -332,45 +332,91 @@ function animate(timestamp) {
         if(tile == 'v')accY += 3.0;
     }
 
-    if(isFalling)
-        sphere.position.y -= 400*dt;
-    else {
+    if(!isFalling) {
         ballSpeed.x += 50*dt*accX;
         ballSpeed.y += 50*dt*accY;
 
         sphere.position.x += dt*ballSpeed.x;
         sphere.position.z += dt*ballSpeed.y;
-
-        let dir = new THREE.Vector3(ballSpeed.y, 0, -ballSpeed.x);
-        let length = dir.length();
-        dir.normalize();
-        sphere.rotateOnWorldAxis(dir, 0.1*dt * length);
     }
 
-    // check collisions with barriers
-    if(BARRIERS.has(`v_${tileX}_${tileY}`)) {
-        if(pX < 0.26) {
-            sphere.position.x = 80*tileX - 40 + 80*0.26;
-            ballSpeed.x *= -0.4;
-        }
-    }
-    if(BARRIERS.has(`v_${tileX+1}_${tileY}`)) {
-        if(pX > 1 - 0.26) {
-            sphere.position.x = 80*tileX - 40 + 80*(1-0.26);
-            ballSpeed.x *= -0.4;
-        }
-    }
-    if(BARRIERS.has(`h_${tileX}_${tileY}`)) {
-        if(pY < 0.26) {
-            sphere.position.z = 80*tileY - 40 + 80*0.26;
-            ballSpeed.y *= -0.4;
-        }
-    }
+    let dir = new THREE.Vector3(ballSpeed.y, 0, -ballSpeed.x);
+    let length = dir.length();
+    dir.normalize();
+    sphere.rotateOnWorldAxis(dir, 0.1*dt * length);
 
-    if(BARRIERS.has(`h_${tileX}_${tileY+1}`)) {
-        if(pY > 1 - 0.26) {
-            sphere.position.z = 80*tileY - 40 + 80*(1-0.26);
-            ballSpeed.y *= -0.4;
+    let pX = (sphere.position.x+40)/80 - tileX, pY = (sphere.position.z+40)/80 - tileY;
+    // console.log(tileX, tileY, pX, pY);
+
+
+    if(tileX < 0 || tileY < 0 || tileY >= LEVEL.board.length || tileX >= LEVEL.board[tileY].length || !TILES_COLLISION[LEVEL.board[tileY][tileX]](pX, pY))
+        isFalling = true;
+
+
+    if(isFalling)
+        sphere.position.y -= 400*dt;
+    else {
+        // check collisions with barriers
+        let R = 0.26;
+        let bL = (pX < R), bR = (pX > 1-R), bT = (pY < R), bB = (pY > 1-R);
+        let any = false;
+        const ELASTICITY = 0.4;
+        let isb = (t, x, y) => BARRIERS.has(`${t}_${x}_${y}`);
+
+        if(bL || bR || bT || bB) {
+            if(bL && isb('v', tileX, tileY)) {
+                sphere.position.x = 80*tileX - 40 + 80*R;
+                ballSpeed.x *= -ELASTICITY;
+                any = true;
+            } else
+            if(bR && isb('v', tileX+1, tileY)) {
+                sphere.position.x = 80*tileX - 40 + 80*(1-R);
+                ballSpeed.x *= -ELASTICITY;
+                any = true;
+            }
+
+            if(bT && isb('h', tileX, tileY)) {
+                sphere.position.z = 80*tileY - 40 + 80*R;
+                ballSpeed.y *= -ELASTICITY;
+                any = true;
+            } else
+            if(bB && isb('h', tileX, tileY+1)) {
+                sphere.position.z = 80*tileY - 40 + 80*(1-R);
+                ballSpeed.y *= -ELASTICITY;
+                any = true;
+            }
+
+            if(!any) {
+                let dist;
+                if(bL && bT && (isb('v', tileX, tileY-1) || isb('h', tileX-1, tileY)) && (dist=Math.hypot(pX, pY)) < R) {
+                    sphere.position.x -= 80*(R - dist) * ballSpeed.x/Math.hypot(ballSpeed.x, ballSpeed.y);
+                    sphere.position.z -= 80*(R - dist) * ballSpeed.y/Math.hypot(ballSpeed.x, ballSpeed.y);
+
+                    ballSpeed.y *= -ELASTICITY;
+                    ballSpeed.x *= -ELASTICITY;
+                } else
+                if(bR && bT && (isb('v', tileX+1, tileY-1) || isb('h', tileX+1, tileY)) && (dist=Math.hypot(1-pX, pY)) < R) {
+                    sphere.position.x -= 80*(R - dist) * ballSpeed.x/Math.hypot(ballSpeed.x, ballSpeed.y);
+                    sphere.position.z -= 80*(R - dist) * ballSpeed.y/Math.hypot(ballSpeed.x, ballSpeed.y);
+
+                    ballSpeed.y *= -ELASTICITY;
+                    ballSpeed.x *= -ELASTICITY;
+                } else
+                if(bR && bB && (isb('v', tileX+1, tileY+1) || isb('h', tileX+1, tileY+1)) && (dist=Math.hypot(1-pX, 1-pY)) < R) {
+                    sphere.position.x -= 80*(R - dist) * ballSpeed.x/Math.hypot(ballSpeed.x, ballSpeed.y);
+                    sphere.position.z -= 80*(R - dist) * ballSpeed.y/Math.hypot(ballSpeed.x, ballSpeed.y);
+
+                    ballSpeed.y *= -ELASTICITY;
+                    ballSpeed.x *= -ELASTICITY;
+                } else
+                if(bL && bB && (isb('v', tileX, tileY+1) || isb('h', tileX-1, tileY+1)) && (dist=Math.hypot(pX, 1-pY)) < R) {
+                    sphere.position.x -= 80*(R - dist) * ballSpeed.x/Math.hypot(ballSpeed.x, ballSpeed.y);
+                    sphere.position.z -= 80*(R - dist) * ballSpeed.y/Math.hypot(ballSpeed.x, ballSpeed.y);
+
+                    ballSpeed.y *= -ELASTICITY;
+                    ballSpeed.x *= -ELASTICITY;
+                }
+            }
         }
     }
 
@@ -378,11 +424,6 @@ function animate(timestamp) {
         scene.remove(sphere);
         showModal('<h1>Looser!</h1><p>You have fallen off the board!</p>');
         GAME_STATE = 'DONE';
-    }
-
-    if(sphere.position.x > 300){
-        sphere.position.x = 300;
-        ballSpeed.x *= -0.3;
     }
 
     // set camera position to ball position

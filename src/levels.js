@@ -14,7 +14,8 @@ const LEVEL_1 = {
         [1, 1],
         [0, 4],
         [5, 4]
-    ]
+    ],
+    barriers: []
 }
 
 const LEVEL_2 = {
@@ -29,7 +30,8 @@ const LEVEL_2 = {
     coords: [
         [1, 3],
         [5, 1],
-    ]
+    ],
+    barriers: []
 }
 
 const PLAYGROUND = {
@@ -47,6 +49,7 @@ const PLAYGROUND = {
     ],
     items: ['1f680', '1f987', '1f41b', '26c4'],
     coords: [[2,2], [6,2], [2, 6], [6,6]],
+    barriers: []
 }
 
 const HIGHWAY = {
@@ -56,6 +59,7 @@ const HIGHWAY = {
     ],
     items: ['1f31f'],
     coords: [[20,0]],
+    barriers: [],
 }
 
 const MAZE = {
@@ -107,12 +111,85 @@ const MAZE = {
     ]
 }
 
+const FACTORY = {
+    start: [0, 0],
+    board: [
+        'v<<',
+        'v ^',
+        '>>^',
+    ],
+    items: [],
+    coords: [],
+    barriers: [
+        ['v', 0, 0],
+        ['v', 0, 1],
+        ['v', 0, 2],
+        ['v', 3, 0],
+        ['v', 3, 1],
+        ['v', 3, 2],
+        ['v', 1, 1],
+        ['v', 2, 1],
+        ['h', 0, 0],
+        ['h', 1, 0],
+        ['h', 2, 0],
+        ['h', 0, 3],
+        ['h', 1, 3],
+        ['h', 2, 3],
+        ['h', 1, 1],
+        ['h', 1, 2],
+    ]
+
+}
+
+const CORNERS = {
+    start: [2, 2],
+    board: [
+        ' xx ',
+        'xxxx',
+        'xxxx',
+        ' xx ',
+    ],
+    items: [],
+    coords: [],
+    barriers: [
+        ['v', 2, 0],
+        ['v', 2, 3],
+
+        ['h', 0, 2],
+        ['h', 3, 2],
+
+        ['v', 1, 0],
+        ['h', 0, 1],
+
+        ['v', 3, 0],
+        ['h', 3, 1],
+
+        ['v', 1, 3],
+        ['h', 0, 3],
+
+        ['v', 3, 3],
+        ['h', 3, 3],
+
+        ['h', 1, 0],
+        ['h', 2, 0],
+        ['h', 1, 4],
+        ['h', 2, 4],
+
+        ['v', 0, 1],
+        ['v', 0, 2],
+        ['v', 4, 1],
+        ['v', 4, 2],
+    ]
+}
+
 const LEVELS = {
     'easy': LEVEL_1,
     'hard': LEVEL_2,
     'playground': PLAYGROUND,
     'highway': HIGHWAY,
     'maze': MAZE,
+    'factory': FACTORY,
+    'corners': CORNERS
 }
 
 export { LEVELS };
